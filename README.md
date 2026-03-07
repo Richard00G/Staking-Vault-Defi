@@ -1,13 +1,22 @@
-# Sample Hardhat Project
+# Staking Vault (DeFi Module)
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+Production-style staking contract built with Solidity and Hardhat.
 
-Try running some of the following tasks:
+## Features
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-npx hardhat node
-npx hardhat ignition deploy ./ignition/modules/Lock.js
-```
+- Proportional reward distribution
+- Time-based reward accrual
+- Dynamic reward injection
+- Multi-user tested
+- Safe reward accounting (no loops)
+- Hardhat test suite with time manipulation
+
+## Stack
+
+- Solidity ^0.8.20
+- Hardhat 2.x
+- OpenZeppelin
+- Ethers.js
+- Mocha + Chai
+
+## Tests
