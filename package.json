@@ -32,5 +32,13 @@
   },
   "dependencies": {
     "@openzeppelin/contracts": "^5.6.1"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Richard00G/Staking-Vault-Defi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Richard00G/Staking-Vault-Defi/issues"
+  },
+  "homepage": "https://github.com/Richard00G/Staking-Vault-Defi#readme"
 }

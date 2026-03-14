@@ -61,7 +61,7 @@ contract StakingVault is ReentrancyGuard, Ownable, Pausable {
     }   
 
     //FUNCTION WITHDRAW  Qe pasa si una direccion retira mas de lo que ingreso??    
-    function withdraw(uint amount) external nonReentrant whenPaused {
+    function withdraw(uint amount) external nonReentrant whenNotPaused {
 
         require(amount > 0, "Amount = 0");
         require(balanceOf[msg.sender] >= amount, "Insufficient Balance");
@@ -107,7 +107,9 @@ contract StakingVault is ReentrancyGuard, Ownable, Pausable {
     
     //FUNCTION CLAIM REWARDS per user
     function claimReward() external nonReentrant {
-
+        
+       require( rewardToken.balanceOf(address(this)) >= rewardRate,"Insufficient reward tokens"
+       );
         updateRewards(msg.sender);
         
         
@@ -125,7 +127,7 @@ contract StakingVault is ReentrancyGuard, Ownable, Pausable {
 
         updateRewards(address(0));
 
-        require(rewardRate > 0,"Reward Rate = 0");
+        require(reward > 0,"Reward  = 0");
         require(rewardRate * duration <= rewardToken.balanceOf(address(this)),"Insufficient reward Balance!");
 
         if (block.timestamp >= periodFinish) {
