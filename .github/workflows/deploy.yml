@@ -18,7 +18,7 @@ jobs:
              node-version: 20
 
          - name: Install Dependencies
-           run: npm ci
+           run: npm install --force
 
          - name: Compile Contract
            run: npx hardhat compile
@@ -27,4 +27,4 @@ jobs:
            run: npx hardhat test
 
          - name: Deploy a Sepolia
-           run: nps hardhat run scripts/deploy.js --network sepolia
+           run: npx hardhat run scripts/deploy.js --network sepolia
