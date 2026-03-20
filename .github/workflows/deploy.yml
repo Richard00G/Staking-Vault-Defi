@@ -1,0 +1,30 @@
+name: Deploy Staking Vault
+
+on:
+ push:
+    branches: [main]
+
+jobs:
+    build-and-deploy:
+       runs-on: ubuntu-latest
+
+       steps:
+         - name: Clonar repo
+           uses: actions/chekout@v3
+
+         - name: Instalar Node
+           uses: actions/setup-node@v3
+           with:
+             node-version: 20
+
+         - name: Instalar Dependencias
+           run: npm install
+
+         - name: Compilar Contrato
+           run: npx hardhat compile
+
+         - name: Ejecutar Test
+           run: npx hardhat test
+
+         - name: Deploy a Sepolia
+           run: nps hardhat run scripts/deploy.js --network sepolia
