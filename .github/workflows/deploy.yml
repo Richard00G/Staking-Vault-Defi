@@ -9,21 +9,21 @@ jobs:
        runs-on: ubuntu-latest
 
        steps:
-         - name: Clonar repo
-           uses: actions/chekout@v3
+         - name: Checkout repo
+           uses: actions/checkout@v3
 
-         - name: Instalar Node
+         - name: Setup Node
            uses: actions/setup-node@v3
            with:
              node-version: 20
 
-         - name: Instalar Dependencias
+         - name: Install Dependencies
            run: npm install
 
-         - name: Compilar Contrato
+         - name: Compile Contract
            run: npx hardhat compile
 
-         - name: Ejecutar Test
+         - name: Test
            run: npx hardhat test
 
          - name: Deploy a Sepolia
