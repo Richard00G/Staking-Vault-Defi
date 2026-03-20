@@ -4,7 +4,7 @@ const { ethers } = hre;
 
 async function main() {
 
-    const Token = await ethers.getContractFactory("TestToken");
+    const Token = await ethers.getContractFactory("TesToken");
 
     const stakingToken = await Token.deploy("StakeToken","STK");
 
