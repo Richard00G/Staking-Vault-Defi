@@ -1,19 +1,7 @@
-# Sample Hardhat Project
+# Sample Hardhat 3 Beta Project (minimal)
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, and a Hardhat Ignition module that deploys that contract.
+This project has a minimal setup of Hardhat 3 Beta, without any plugins.
 
-Try running some of the following tasks:
+## What's included?
 
-```shell
-npx hardhat help
-npx hardhat test
-REPORT_GAS=true npx hardhat test
-
-
-Tests included:
-
-✓ Reward accumulation over time  
-✓ Claim rewards  
-✓ Multi-user proportional rewards  
-✓ Whale resistance test
-```
+The project includes native support for TypeScript, Hardhat scripts, tasks, and support for Solidity compilation and tests.
