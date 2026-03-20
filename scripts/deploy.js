@@ -1,12 +1,8 @@
-import pkg from "hardhat";
+const hre = require("hardhat");
 
-
-
-const { ethers } = pkg;
+const { ethers } = hre;
 
 async function main() {
-
-    
 
     const Token = await ethers.getContractFactory("StakingVault");
 
@@ -24,10 +20,7 @@ async function main() {
 
     const Vault = await ethers.getContractFactory("StakingVault");
 
-    const vault = await Vault.deploy(
-        await stakingTokenAddress,
-        await rewardTokenAddress
-    );
+    const vault = await Vault.deploy(stakingTokenAddress,rewardTokenAddress);
 
     await vault.waitForDeployment();
 
