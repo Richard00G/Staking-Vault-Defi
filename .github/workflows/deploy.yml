@@ -25,6 +25,3 @@ jobs:
 
          - name: Test
            run: npx hardhat test
-
-         - name: Deploy a Sepolia
-           run: npx hardhat run scripts/deploy.js --network sepolia
