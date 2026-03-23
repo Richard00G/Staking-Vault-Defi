@@ -1,44 +1,44 @@
+
 import { useState } from "react";
+import { useWriteContract } from "wagmi";
 import { parseEther } from "viem";
 import { useStaking } from "../hooks/useContract";
 
-
 export default function Stake() {
-  const [input, setInput] = useState("0");
+  const [amount, setAmount] = useState("");
+  const { writeContractAsync, isPending } = useWriteContract();
 
-  const amount = parseEther(input || "0");
+  const handleStake = async () => {
+    if (!amount) return;
 
-  const { allowance, approve, stake } = useStaking(amount);
-
-  const needsApproval = allowance < amount;
-
-  const handleAction = async () => {
     try {
-      if (needsApproval) {
-        console.log("🔵 Approving...");
-        await approve();
-      } else {
-        console.log("🟢 Staking...");
-        await stake();
-      }
+      await writeContractAsync({
+        ...useStaking,
+        functionName: "stake",
+        args: [parseEther(amount)],
+      });
     } catch (err) {
       console.error(err);
+      alert("Error staking");
     }
   };
 
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Stake Tokens</h2>
-
+    <div className="flex flex-col gap-3">
       <input
         type="number"
         placeholder="Amount"
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
+        className="p-2 rounded bg-[#0f172a] border border-gray-600"
+        value={amount}
+        onChange={(e) => setAmount(e.target.value)}
       />
 
-      <button onClick={handleAction}>
-        {needsApproval ? "Approve" : "Stake"}
+      <button
+        onClick={handleStake}
+        disabled={isPending}
+        className="bg-green-500 hover:bg-green-600 p-2 rounded font-semibold"
+      >
+        {isPending ? "Staking..." : "Stake"}
       </button>
     </div>
   );
