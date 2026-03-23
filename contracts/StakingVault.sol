@@ -108,7 +108,7 @@ contract StakingVault is ReentrancyGuard, Ownable, Pausable {
     //FUNCTION CLAIM REWARDS per user
     function claimReward() external nonReentrant {
         
-       require( rewardToken.balanceOf(address(this)) >= rewardRate,"Insufficient reward tokens"
+       require( rewardToken.balanceOf(address(this)) >= rewardRate ,"Insufficient reward tokens"
        );
         updateRewards(msg.sender);
         
