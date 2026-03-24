@@ -1,21 +1,19 @@
 import { useState } from "react";
-import { useWriteContract } from "wagmi";
-import { parseEther } from "viem";
 import { useStaking } from "../hooks/useContract";
 
 export default function Withdraw() {
   const [amount, setAmount] = useState("");
-  const { writeContractAsync, isPending } = useWriteContract();
+  const { withdraw } = useStaking(); //
 
-  const withdraw = async () => {
+  const handleWithdraw = async () => {
+    if (!amount || Number(amount) <= 0) return;
+
     try {
-      await writeContractAsync({
-        ...useStaking,
-        functionName: "withdraw",
-        args: [parseEther(amount)],
-      });
+      await withdraw(amount); //
+      alert("✅ Withdraw exitoso");
     } catch (err) {
       console.error(err);
+      alert("❌ Error withdraw");
     }
   };
 
@@ -30,11 +28,10 @@ export default function Withdraw() {
       />
 
       <button
-        onClick={withdraw}
-        disabled={isPending}
+        onClick={handleWithdraw}
         className="bg-red-500 hover:bg-red-600 p-2 rounded"
       >
-        {isPending ? "Withdrawing..." : "Withdraw"}
+        Withdraw
       </button>
     </div>
   );

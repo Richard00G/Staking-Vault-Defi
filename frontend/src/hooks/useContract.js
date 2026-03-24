@@ -1,58 +1,66 @@
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { erc20Abi, parseEther } from "viem";
+import {abi as vaultAbi } from "../abi/StakingVault.json";
 
-    import {abi as vaultAbi } from "../abi/StakingVault.json";
-
-    console.log("ABI: ", vaultAbi);
-
+export { vaultAbi };
 
 const stakingTokenAddress = "0xb280b5050053c058581763DeF99f57E00F7C7B2A";
 const rewardTokenAddress = "0xEe181449945d359c1F6Bd52aAd6c4F0662168056" // 
-const vaultAddress = "0xE654A5f7487023506E3f044c7bdA876C8C57D086"; // 
+export const vaultAddress = "0xE654A5f7487023506E3f044c7bdA876C8C57D086"; // 
 
-export function useStaking(amount) {
+ 
+
+export function useStaking() {
   const { address } = useAccount();
   const { writeContractAsync } = useWriteContract();
 
-  // 🔍 allowance
   const { data: allowance, refetch } = useReadContract({
     address: stakingTokenAddress,
     abi: erc20Abi,
     functionName: "allowance",
     args: address ? [address, vaultAddress] : undefined,
-    enableb: !!address,
+    enabled: !!address,
   });
 
-  //APPROVE
-  const approve = async () => {
-    const tx = await writeContractAsync({
+  const approve = async (amount) => {
+    if (!address || !amount || Number(amount) <= 0) return;
+
+    return await writeContractAsync({
       address: stakingTokenAddress,
       abi: erc20Abi,
       functionName: "approve",
       args: [vaultAddress, parseEther(amount)],
     });
-
-    await refetch(); // actualizar allowance
-    return tx;
   };
 
-  //STAKE
-  const stake = async () => {
-    if (!address) return;
-    if (!amount || Number(amount) <= 0) return;
-    const tx = await writeContractAsync({
+  const stake = async (amount) => {
+    if (!address || !amount || Number(amount) <= 0) return;
+
+    return await writeContractAsync({
       address: vaultAddress,
       abi: vaultAbi,
       functionName: "stake",
       args: [parseEther(amount)],
     });
+  };
 
-    return tx;
+  const withdraw = async (amount) => {
+    if (!address || !amount || Number(amount) <= 0) return;
+
+    return await writeContractAsync({
+      address: vaultAddress,
+      abi: vaultAbi,
+      functionName: "withdraw",
+      args: [parseEther(amount)],
+    });
   };
 
   return {
     allowance,
     approve,
     stake,
+    withdraw,
   };
+
+ 
 }
