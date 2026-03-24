@@ -1,19 +1,28 @@
-import { useReadContract, useWriteContract } from "wagmi";
-import { useStaking } from "../hooks/useContract";
+import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { vaultAddress } from "../hooks/useContract";
+import {abi as vaultAbi } from "../abi/StakingVault.json";
 
 export default function Rewards() {
+  const { address } = useAccount();
+
   const { data } = useReadContract({
-    ...useStaking,
+    address: vaultAddress,
+    abi: vaultAbi,
     functionName: "earned",
+    args: address ? [address] : undefined,
+    enabled: !!address,
   });
 
   const { writeContractAsync, isPending } = useWriteContract();
 
   const claim = async () => {
+    if(!address) return;
+
     try {
       await writeContractAsync({
-        ...useStaking,
-        functionName: "claimReward",
+      address: vaultAddress,
+      abi: vaultAbi,
+      functionName: "claimReward",
       });
     } catch (err) {
       console.error(err);

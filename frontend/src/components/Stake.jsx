@@ -6,20 +6,18 @@ import { useStaking } from "../hooks/useContract";
 
 export default function Stake() {
   const [amount, setAmount] = useState("");
-  const { writeContractAsync, isPending } = useWriteContract();
+  const { approve,stake } = useStaking();
 
   const handleStake = async () => {
     if (!amount) return;
 
     try {
-      await writeContractAsync({
-        ...useStaking,
-        functionName: "stake",
-        args: [parseEther(amount)],
-      });
+      await approve(amount);
+      await stake(amount);
+      alert("Staked!!")
     } catch (err) {
       console.error(err);
-      alert("Error staking");
+      alert("Error staking!!");
     }
   };
 
@@ -35,10 +33,9 @@ export default function Stake() {
 
       <button
         onClick={handleStake}
-        disabled={isPending}
         className="bg-green-500 hover:bg-green-600 p-2 rounded font-semibold"
       >
-        {isPending ? "Staking..." : "Stake"}
+        Stake
       </button>
     </div>
   );
