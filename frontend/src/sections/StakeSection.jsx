@@ -1,10 +1,14 @@
-
 import { useState } from "react";
 import { useWriteContract } from "wagmi";
 import { parseEther } from "viem";
 import { useStaking } from "../hooks/useContract";
+//Components
+import Card from "../components/Card";
+import Button from "../components/Button";
+import Input from "../components/Input";
 
-export default function Stake() {
+
+export default function StakeSection() {
   const [amount, setAmount] = useState("");
   const { approve,stake } = useStaking();
 
@@ -22,21 +26,20 @@ export default function Stake() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <input
-        type="number"
-        placeholder="Amount"
-        className="p-2 rounded bg-[#0f172a] border border-gray-600"
+    <Card>
+        <h2 className="text-x1 font-bold mb-4 text-white">Stake</h2>
+
+        <Input
         value={amount}
         onChange={(e) => setAmount(e.target.value)}
-      />
+        placeholder="Amount Deposit" />
 
-      <button
-        onClick={handleStake}
-        className="bg-green-500 hover:bg-green-600 p-2 rounded font-semibold"
-      >
-        Stake
-      </button>
-    </div>
+        <div className="mt-4">
+            <Button onClick={handleStake}>Stake Tokens</Button>
+
+        </div>
+
+    </Card>
+    
   );
 }
