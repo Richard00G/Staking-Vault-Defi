@@ -1,16 +1,98 @@
-# React + Vite
+🚀 Staking Vault DeFi App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A complete decentralized staking application built with Solidity + React + Wagmi + Viem.
 
-Currently, two official plugins are available:
+✨ Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- 🔐 Stake ERC20 tokens
+- 💰 Earn rewards in real-time
+- 🏦 Withdraw staked tokens
+- 🎁 Claim rewards
+- 💧 Faucet for test tokens
+- 📊 Dashboard UI with live data
+- 🔗 Wallet connection (MetaMask / WalletConnect)
 
-## React Compiler
+---
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+🧱 Tech Stack
 
-## Expanding the ESLint configuration
+Smart Contracts
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- Solidity
+- Hardhat
+- OpenZeppelin
+
+Frontend
+
+- React + Vite
+- Wagmi v2
+- Viem
+- TailwindCSS
+- Recharts (for data visualization)
+
+---
+
+📦 Installation
+
+git clone <your-repo>
+cd staking-vault/frontend
+npm install
+npm run dev
+
+---
+
+⚙️ Environment Setup
+
+Create a ".env" file if needed:
+
+VITE_PROJECT_ID=your_walletconnect_project_id
+
+---
+
+🔗 Contracts (Sepolia)
+
+- Token: "0x..."
+- Vault: "0x..."
+
+---
+
+🧪 How to Use
+
+1. Connect your wallet
+2. Click Get Test Tokens
+3. Approve tokens
+4. Stake tokens
+5. Earn rewards
+6. Claim or withdraw anytime
+
+---
+
+⚠️ Notes
+
+- This project is deployed on Sepolia testnet
+- Faucet is included for demo purposes
+- Not audited – for educational/demo use only
+
+---
+
+📸 Demo
+
+https://staking-vault-defi.vercel.app/
+
+---
+
+🧠 Author
+
+Built as a full-stack Web3 portfolio project.
+
+---
+
+🚀 Future Improvements
+
+- 📈 Real-time reward charts
+- 🧠 Backend analytics (Supabase)
+- 🔔 Notifications system
+- 🔒 Upgradeable contracts
+- 💰 Mainnet deployment
+
+---Richard00G

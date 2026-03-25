@@ -1,10 +1,15 @@
 import { useAccount, useReadContract, useWriteContract } from "wagmi";
 import { vaultAddress } from "../hooks/useContract";
 import {abi as vaultAbi } from "../abi/StakingVault.json";
+//Components
+import Card from "../components/Card";
+import Button from "../components/Button";
+import Stat from "../components/Stat";
 
-export default function Rewards() {
+export default function RewardsSection() {
   const { address } = useAccount();
 
+     //Read Rewards
   const { data } = useReadContract({
     address: vaultAddress,
     abi: vaultAbi,
@@ -14,7 +19,7 @@ export default function Rewards() {
   });
 
   const { writeContractAsync, isPending } = useWriteContract();
-
+      //Claim Rewards
   const claim = async () => {
     if(!address) return;
 
@@ -30,18 +35,19 @@ export default function Rewards() {
   };
 
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-lg">
-        Rewards: {data ? Number(data) / 1e18 : 0}
-      </p>
+   <Card>
 
-      <button
-        onClick={claim}
-        disabled={isPending}
-        className="bg-blue-500 hover:bg-blue-600 p-2 rounded"
-      >
-        {isPending ? "Claiming..." : "Claim Rewards"}
-      </button>
-    </div>
+    <h2 className="text-x1 font-bold mb-4 text-white">Rewards</h2>
+     
+     <Stat label="Your Rewards" value={data ? Number(data) / 1e18 : 0}/>
+
+     <div className="mt-4">
+       
+        <Button color="blue" onClick={claim}>
+           Claim Rewards
+        </Button>
+
+     </div>
+   </Card>
   );
 }

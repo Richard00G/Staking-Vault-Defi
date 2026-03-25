@@ -4,9 +4,9 @@ import {abi as vaultAbi } from "../abi/StakingVault.json";
 
 export { vaultAbi };
 
-const stakingTokenAddress = "0xb280b5050053c058581763DeF99f57E00F7C7B2A";
-const rewardTokenAddress = "0xEe181449945d359c1F6Bd52aAd6c4F0662168056" // 
-export const vaultAddress = "0xE654A5f7487023506E3f044c7bdA876C8C57D086"; // 
+const stakingTokenAddress = "0x92540C78fEB32bA9D1D738314549f0739E034aBd";
+const rewardTokenAddress = "0x2139a238b21fE0825559a1FF11c15f23996f0A21" // 
+export const vaultAddress = "0x51C53D72B13987Dd251dd089882274C3Fa53d5BE"; // 
 
  
 
