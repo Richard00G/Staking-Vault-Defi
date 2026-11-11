@@ -1,51 +1,27 @@
-import { useAccount,useReadContract } from "wagmi";
-import { formatEther,erc20Abi } from "viem";
-import { vaultAbi, vaultAddress } from "../hooks/useContract";
+import { formatEther } from "viem";
+import { fmt } from "../lib/format";
+import Stat from "./Stat";
+import { useNow } from "../hooks/useNow";
 
-const token = "0xb280b5050053c058581763DeF99f57E00F7C7B2A";
-
-export default function Stats() {
-
-    const { address } = useAccount();
-
-    const { data: balance } = useReadContract({
-        address: token,
-        abi: erc20Abi,
-        functionName: "balanceOf",
-        args: address ? [address] : undefined,
-        enabled: !!address,
-    });
-
-    const { data: rewards } = useReadContract({
-        address: vaultAddress,
-        abi: vaultAbi,
-        functionName: "earned",
-        args: address ? [address] : undefined,
-        enabled: !!address,
-    });
-
-    return (
-
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
-            <Statt label = "Balance" value = {balance ? formatEther(balance) : "0"} />
-            <Statt label = "Rewards" value = {rewards ? formatEther(rewards) : "0"} />
-            <Statt label = "Status" value = "Active" />
-        </div>
-
-    );
-
+function periodLabel(periodFinish, now) {
+  if (periodFinish === undefined) return "—";
+  const end = Number(periodFinish) * 1000;
+  if (end <= now) return "Sin rewards activos";
+  const days = (end - now) / 86_400_000;
+  return days >= 1 ? `${days.toFixed(1)} días restantes` : `${(days * 24).toFixed(1)} h restantes`;
 }
 
+export default function Stats({ v }) {
+  const now = useNow();
+  const active = v.periodFinish !== undefined && Number(v.periodFinish) * 1000 > now;
+  const perDay = v.rewardRate !== undefined && active ? Number(formatEther(v.rewardRate)) * 86_400 : 0;
 
-function Statt({label,value}) {
-         return (
-            <div className="bg-gray-900 p-4 rounded-x1 rext-center">
-              
-               <p className="text-gray-400 text-sm">{label}</p>
-               <p className="text-white text-xl font-bold">{value ?? "0"}</p>
-
-             </div>
-        );
+  return (
+    <div className="mb-8 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <Stat label="Total stakeado (vault)" value={fmt(v.totalStaked, 2)} unit="STK" />
+      <Stat label="Rewards por día (vault)" value={perDay.toLocaleString("es-MX", { maximumFractionDigits: 2 })} unit="RWD" />
+      <Stat label="Periodo de rewards" value={periodLabel(v.periodFinish, now)} />
+      <Stat label="Tu stake" value={fmt(v.staked)} unit="STK" accent />
+    </div>
+  );
 }
-
-

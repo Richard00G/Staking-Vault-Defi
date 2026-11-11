@@ -1,28 +1,17 @@
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { useAccount } from "wagmi";
 import Faucet from "./Faucet";
 
-export default function Header() {
-
-    const { address } = useAccount();
-
-    return (
-        <div className="flex justify-between items-center mb8">
-
-            <h1 className="text-2x1 font-bold"> Staking Vault Defi🚀</h1>
-
-            <div className="flex items-center gap-4">
-               <Faucet />
-                {address && (
-
-               <p className="text-gray-400 text-sm">
-                {address.slice(0,6)}...{address.slice(-4)}
-                </p>
-                )}
-
-                <ConnectButton />
-            </div>
-
-        </div>
-    );
+export default function Header({ onFaucet }) {
+  return (
+    <header className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+      <div>
+        <h1 className="text-3xl font-bold text-white">Staking Vault 🚀</h1>
+        <p className="mt-1 text-gray-400">Stakea STK y gana RWD cada segundo.</p>
+      </div>
+      <div className="flex flex-wrap items-start gap-3">
+        <Faucet onDone={onFaucet} />
+        <ConnectButton showBalance={false} />
+      </div>
+    </header>
+  );
 }

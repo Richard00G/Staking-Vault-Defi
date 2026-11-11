@@ -1,160 +1,170 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-//IMPORTAMOS OpenZeppelin
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/access/Ownable.sol"; 
-import "@openzeppelin/contracts/utils/Pausable.sol"; 
+import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/utils/Pausable.sol";
 
+/// @title StakingVault v2
+/// @notice Stake `stakingToken` and earn `rewardToken` over fixed reward periods
+///         (Synthetix StakingRewards model).
+contract StakingVault is ReentrancyGuard, Ownable, Pausable {
+    using SafeERC20 for IERC20;
 
-contract StakingVault is ReentrancyGuard, Ownable, Pausable { 
+    IERC20 public immutable stakingToken; // Token que depositan los usuarios
+    IERC20 public immutable rewardToken;  // Token con el que se pagan los rewards
 
-    IERC20 public stakingToken; //Tokens deposited per user
-    IERC20 public rewardToken; //Tokens Preview Depostitated for pay to users 
+    uint256 public totalSupply;           // Total stakeado en el vault
+    uint256 public duration = 7 days;     // Duración de cada periodo de rewards
+    uint256 public periodFinish;          // Fin del periodo actual
 
-   //VAR
-    uint public totalSupply;
-    uint public duration = 7 days;
-    uint public periodFinish;
+    uint256 public rewardRate;            // Rewards por segundo
+    uint256 public lastUpdateTime;
+    uint256 public rewardPerTokenStored;
 
-    //VAR REWARDS
-    uint public rewardRate; //Token reward per second
-    uint public lastUpdateTime; //last time update
-    uint public rewardPerTokenStored; //Reward acomulated
+    mapping(address => uint256) public userRewardPerTokenPaid;
+    mapping(address => uint256) public rewards;
+    mapping(address => uint256) public balanceOf;
 
-    //MAPPINGS 
-    mapping (address=>uint) public userRewardPerTokenPaid; //Checkpoint user
-    mapping (address => uint) public rewards; //Pedient Rewards
-    mapping (address => uint) public balanceOf; //Balance total Address to contract
-    
+    event Staked(address indexed user, uint256 amount);
+    event Withdrawn(address indexed user, uint256 amount);
+    event RewardPaid(address indexed user, uint256 reward);
+    event RewardAdded(uint256 reward);
+    event DurationUpdated(uint256 newDuration);
+    event Recovered(address token, uint256 amount);
 
-    //EVENTS
-    event Staked(address indexed user, uint amount);
-    event Withdrawn(address indexed user, uint amount);
-    event RewardPaid(address indexed user, uint reward);
-    event rewardAdded(uint reward);
+    error ZeroAmount();
+    error ZeroAddress();
+    error InsufficientBalance();
+    error NoRewards();
+    error RewardTooHigh();
+    error PeriodNotFinished();
+    error CannotRecoverVaultToken();
 
-    //CONSTRUCTOR
-    constructor(address __stakingToken, address _rewardToken) Ownable(msg.sender) {
-           
-           stakingToken = IERC20(__stakingToken);
-           rewardToken  = IERC20(_rewardToken);
+    constructor(address _stakingToken, address _rewardToken) Ownable(msg.sender) {
+        if (_stakingToken == address(0) || _rewardToken == address(0)) revert ZeroAddress();
+        stakingToken = IERC20(_stakingToken);
+        rewardToken = IERC20(_rewardToken);
     }
 
-
-    //FUNCTION STAKE (DEPOSIT) Revisar si cualquier direccion deposita a la direccion del contrato
-    //QUE PASA CON LOS BALANCES MENORES A 1 como 0.9??
-    function stake(uint amount) external nonReentrant whenNotPaused {
-
-        require(amount > 0,"Amount = 0");
-
-        updateRewards(msg.sender);
-
-        stakingToken.transferFrom(msg.sender, address(this), amount);
-
-        balanceOf[msg.sender] += amount;
-        totalSupply += amount;
-
-        emit Staked(msg.sender, amount);
-        
-    }   
-
-    //FUNCTION WITHDRAW  Qe pasa si una direccion retira mas de lo que ingreso??    
-    function withdraw(uint amount) external nonReentrant whenNotPaused {
-
-        require(amount > 0, "Amount = 0");
-        require(balanceOf[msg.sender] >= amount, "Insufficient Balance");
-        
-        updateRewards(msg.sender); 
-
-        balanceOf[msg.sender] -= amount;
-        totalSupply -= amount;
-
-        stakingToken.transfer(msg.sender, amount);
-
-        emit Withdrawn(msg.sender, amount);
-        
-    }
-
-    //FUNCTION REWARD PER TOKEN
-    function rewardPerToken() public view returns (uint) {
-
-        if (totalSupply == 0) {
-            return rewardPerTokenStored;
+    modifier updateReward(address account) {
+        rewardPerTokenStored = rewardPerToken();
+        lastUpdateTime = lastTimeRewardApplicable();
+        if (account != address(0)) {
+            rewards[account] = earned(account);
+            userRewardPerTokenPaid[account] = rewardPerTokenStored;
         }
-        //                                     time transcurred   * tokens rewards per second / total de Tokens
-        return rewardPerTokenStored +((block.timestamp - lastUpdateTime) * rewardRate * 1e18 / totalSupply);
+        _;
     }
 
-    //FUNCTION EARNED 
-    function earned(address account) public view  returns (uint) {
+    // ---------------------------------------------------------------- views
 
-        return (balanceOf[account] * (rewardPerToken() - userRewardPerTokenPaid[account]) / 1e18 ) + rewards[account]; 
+    /// @notice Los rewards solo corren hasta que termina el periodo.
+    function lastTimeRewardApplicable() public view returns (uint256) {
+        return block.timestamp < periodFinish ? block.timestamp : periodFinish;
     }
 
-    //FUNCTION UPDATE REWARDS
-    function updateRewards(address account) internal {
- 
-         rewardPerTokenStored = rewardPerToken();
-         lastUpdateTime = block.timestamp;  
-
-         if (account != address(0)) {
-              rewards[account] = earned(account);
-              userRewardPerTokenPaid[account] = rewardPerTokenStored;
-         }       
+    function rewardPerToken() public view returns (uint256) {
+        if (totalSupply == 0) return rewardPerTokenStored;
+        return rewardPerTokenStored
+            + ((lastTimeRewardApplicable() - lastUpdateTime) * rewardRate * 1e18) / totalSupply;
     }
-    
-    //FUNCTION CLAIM REWARDS per user
-    function claimReward() external nonReentrant {
-        
-       require( rewardToken.balanceOf(address(this)) >= rewardRate ,"Insufficient reward tokens"
-       );
-        updateRewards(msg.sender);
-        
-        
-        uint reward = rewards[msg.sender];  
-        require(reward > 0, "Ups! no rewards"); 
+
+    function earned(address account) public view returns (uint256) {
+        return (balanceOf[account] * (rewardPerToken() - userRewardPerTokenPaid[account])) / 1e18
+            + rewards[account];
+    }
+
+    /// @notice Rewards totales que reparte el periodo actual.
+    function getRewardForDuration() external view returns (uint256) {
+        return rewardRate * duration;
+    }
+
+    // ---------------------------------------------------------------- user
+
+    function stake(uint256 amount) external nonReentrant whenNotPaused updateReward(msg.sender) {
+        if (amount == 0) revert ZeroAmount();
+        totalSupply += amount;
+        balanceOf[msg.sender] += amount;
+        stakingToken.safeTransferFrom(msg.sender, address(this), amount);
+        emit Staked(msg.sender, amount);
+    }
+
+    /// @dev Sin `whenNotPaused`: los usuarios siempre pueden sacar su dinero.
+    function withdraw(uint256 amount) public nonReentrant updateReward(msg.sender) {
+        if (amount == 0) revert ZeroAmount();
+        if (balanceOf[msg.sender] < amount) revert InsufficientBalance();
+        totalSupply -= amount;
+        balanceOf[msg.sender] -= amount;
+        stakingToken.safeTransfer(msg.sender, amount);
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    function claimReward() public nonReentrant updateReward(msg.sender) {
+        uint256 reward = rewards[msg.sender];
+        if (reward == 0) revert NoRewards();
         rewards[msg.sender] = 0;
-        rewardToken.transfer((msg.sender), reward);
-
+        rewardToken.safeTransfer(msg.sender, reward);
         emit RewardPaid(msg.sender, reward);
-        
     }
 
-    //FUNCTION NOTIFY REWARDS AMOUNT 
-    function notifyRewardAmount(uint reward) external onlyOwner {
+    /// @notice Retira todo y cobra rewards en una sola transacción.
+    function exit() external {
+        withdraw(balanceOf[msg.sender]);
+        if (rewards[msg.sender] > 0) claimReward();
+    }
 
-        updateRewards(address(0));
+    // ---------------------------------------------------------------- owner
 
-        require(reward > 0,"Reward  = 0");
-        require(rewardRate * duration <= rewardToken.balanceOf(address(this)),"Insufficient reward Balance!");
+    /// @notice Deposita `reward` tokens y arranca (o extiende) un periodo de rewards.
+    function notifyRewardAmount(uint256 reward) external onlyOwner updateReward(address(0)) {
+        if (reward == 0) revert ZeroAmount();
+
+        rewardToken.safeTransferFrom(msg.sender, address(this), reward);
 
         if (block.timestamp >= periodFinish) {
             rewardRate = reward / duration;
-        }else{
-            uint remaining = periodFinish - block.timestamp;
-            uint leftover = remaining * rewardRate;
+        } else {
+            uint256 leftover = (periodFinish - block.timestamp) * rewardRate;
             rewardRate = (reward + leftover) / duration;
         }
+        if (rewardRate == 0) revert ZeroAmount();
+
+        // El vault debe tener fondos para pagar todo el periodo nuevo.
+        // Si el reward token es el mismo que el de staking, no cuenta lo stakeado.
+        uint256 balance = rewardToken.balanceOf(address(this));
+        if (address(rewardToken) == address(stakingToken)) balance -= totalSupply;
+        if (rewardRate > balance / duration) revert RewardTooHigh();
 
         lastUpdateTime = block.timestamp;
         periodFinish = block.timestamp + duration;
-
-        rewardToken.transferFrom(msg.sender,address(this), reward);
-
-        emit rewardAdded(reward);
-        
+        emit RewardAdded(reward);
     }
 
-    //FUNCTION PAUSE 
-    function pausse() external onlyOwner {
+    function setRewardsDuration(uint256 _duration) external onlyOwner {
+        if (block.timestamp <= periodFinish) revert PeriodNotFinished();
+        if (_duration == 0) revert ZeroAmount();
+        duration = _duration;
+        emit DurationUpdated(_duration);
+    }
+
+    /// @notice Rescata tokens enviados por error. Nunca permite sacar el token de
+    ///         staking ni el de rewards (son dinero de los usuarios).
+    function recoverERC20(address token, uint256 amount) external onlyOwner {
+        if (token == address(stakingToken) || token == address(rewardToken)) {
+            revert CannotRecoverVaultToken();
+        }
+        IERC20(token).safeTransfer(owner(), amount);
+        emit Recovered(token, amount);
+    }
+
+    function pause() external onlyOwner {
         _pause();
-        
     }
+
     function unpause() external onlyOwner {
         _unpause();
     }
-
-
 }

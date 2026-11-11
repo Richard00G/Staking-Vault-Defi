@@ -1,53 +1,27 @@
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
-import { vaultAddress } from "../hooks/useContract";
-import {abi as vaultAbi } from "../abi/StakingVault.json";
-//Components
+import { vault } from "../lib/contracts";
+import { fmt } from "../lib/format";
+import { useTx } from "../hooks/useTx";
+import { useCorrectNetwork } from "../hooks/useCorrectNetwork";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import Stat from "../components/Stat";
+import TxStatus from "../components/TxStatus";
 
-export default function RewardsSection() {
-  const { address } = useAccount();
+export default function RewardsSection({ v }) {
+  const tx = useTx();
+  const ok = useCorrectNetwork();
+  const hasRewards = (v.earned ?? 0n) > 0n;
 
-     //Read Rewards
-  const { data } = useReadContract({
-    address: vaultAddress,
-    abi: vaultAbi,
-    functionName: "earned",
-    args: address ? [address] : undefined,
-    enabled: !!address,
-  });
-
-  const { writeContractAsync, isPending } = useWriteContract();
-      //Claim Rewards
-  const claim = async () => {
-    if(!address) return;
-
-    try {
-      await writeContractAsync({
-      address: vaultAddress,
-      abi: vaultAbi,
-      functionName: "claimReward",
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const claim = () =>
+    tx.run([[{ ...vault, functionName: "claimReward" }, "Cobrar rewards"]], "Rewards cobrados 🎁", v.refetch);
 
   return (
-   <Card>
-
-    <h2 className="text-x1 font-bold mb-4 text-white">Rewards</h2>
-     
-     <Stat label="Your Rewards" value={data ? Number(data) / 1e18 : 0}/>
-
-     <div className="mt-4">
-       
-        <Button color="blue" onClick={claim}>
-           Claim Rewards
-        </Button>
-
-     </div>
-   </Card>
+    <Card title="Rewards" subtitle="Se acumulan cada segundo mientras tengas STK stakeado.">
+      <Stat label="Por cobrar" value={fmt(v.earned, 6)} unit="RWD" accent />
+      <Button color="blue" onClick={claim} disabled={!ok || !hasRewards} loading={tx.busy}>
+        Cobrar rewards
+      </Button>
+      <TxStatus {...tx} />
+    </Card>
   );
 }

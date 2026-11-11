@@ -1,10 +1,11 @@
-export default function Stat({ label, value }) {
-    return (
-        <div className="bg-gray-800 p-4 rounded-x1 text-center">
-            
-            <p className="text-gray-400 text-sm">{label}</p>
-            <p className="text-x1 font-bold text-green-400">{value}</p>
-
-        </div>
-    );
+export default function Stat({ label, value, unit, accent = false }) {
+  return (
+    <div className="rounded-xl border border-gray-800 bg-gray-900 p-4">
+      <p className="text-sm text-gray-400">{label}</p>
+      <p className={`mt-1 truncate text-xl font-bold ${accent ? "text-emerald-400" : "text-white"}`}>
+        {value}
+        {unit && <span className="ml-1 text-sm font-medium text-gray-400">{unit}</span>}
+      </p>
+    </div>
+  );
 }

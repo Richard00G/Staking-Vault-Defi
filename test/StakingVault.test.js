@@ -1,105 +1,196 @@
 const { expect } = require("chai");
-const { ethers, network } = require("hardhat");
+const { ethers } = require("hardhat");
+const { time, loadFixture } = require("@nomicfoundation/hardhat-toolbox/network-helpers");
+
+const e = (n) => ethers.parseEther(String(n));
+const WEEK = 7 * 24 * 60 * 60;
+const REWARD = e(1000);
+
+async function deployFixture() {
+  const [owner, alice, bob] = await ethers.getSigners();
+
+  const Token = await ethers.getContractFactory("TesToken");
+  const stakingToken = await Token.deploy("StakeToken", "STK");
+  const rewardToken = await Token.deploy("RewardToken", "RWD");
+
+  const Vault = await ethers.getContractFactory("StakingVault");
+  const vault = await Vault.deploy(await stakingToken.getAddress(), await rewardToken.getAddress());
+  const vaultAddr = await vault.getAddress();
+
+  for (const u of [alice, bob]) {
+    await stakingToken.transfer(u.address, e(1000));
+    await stakingToken.connect(u).approve(vaultAddr, ethers.MaxUint256);
+  }
+  await rewardToken.approve(vaultAddr, ethers.MaxUint256);
+
+  return { owner, alice, bob, stakingToken, rewardToken, vault };
+}
+
+async function fundedFixture() {
+  const f = await deployFixture();
+  await f.vault.notifyRewardAmount(REWARD);
+  return f;
+}
 
 describe("StakingVault", function () {
-  let stakingToken, rewardToken, vault;
-  let owner, user1;
-  const stakeAmount = ethers.parseEther("100");
+  describe("Stake / withdraw", function () {
+    it("permite stake y actualiza balances", async function () {
+      const { vault, alice } = await loadFixture(fundedFixture);
+      await expect(vault.connect(alice).stake(e(100)))
+        .to.emit(vault, "Staked").withArgs(alice.address, e(100));
+      expect(await vault.balanceOf(alice.address)).to.equal(e(100));
+      expect(await vault.totalSupply()).to.equal(e(100));
+    });
 
-  beforeEach(async function () {
-    [owner, user1] = await ethers.getSigners();
+    it("rechaza stake de 0", async function () {
+      const { vault, alice } = await loadFixture(fundedFixture);
+      await expect(vault.connect(alice).stake(0)).to.be.revertedWithCustomError(vault, "ZeroAmount");
+    });
 
-    // Deploy Token
-    const Token = await ethers.getContractFactory("TesToken");
+    it("rechaza stake sin approve", async function () {
+      const { vault, owner } = await loadFixture(fundedFixture);
+      await expect(vault.connect(owner).stake(e(1))).to.be.reverted;
+    });
 
-    stakingToken = await Token.deploy("StakeToken", "STK");
-    await stakingToken.waitForDeployment();
+    it("permite withdraw y devuelve los tokens", async function () {
+      const { vault, alice, stakingToken } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await vault.connect(alice).withdraw(e(40));
+      expect(await vault.balanceOf(alice.address)).to.equal(e(60));
+      expect(await stakingToken.balanceOf(alice.address)).to.equal(e(940));
+    });
 
-    rewardToken = await Token.deploy("RewardToken", "RWD");
-    await rewardToken.waitForDeployment();
-
-    // Deploy Vault
-    const Vault = await ethers.getContractFactory("StakingVault");
-
-    vault = await Vault.deploy(
-      await stakingToken.getAddress(),
-      await rewardToken.getAddress()
-    );
-
-    await vault.waitForDeployment();
-
-    await rewardToken.approve(await vault.getAddress(), ethers.parseEther("1000"));
-
-    //Activar Rewards
-    await vault.notifyRewardAmount(ethers.parseEther("1000"));
-
-    // Transfer tokens a user1
-    await stakingToken.transfer(user1.address, stakeAmount);
-
-    console.log("earned: ", (await vault.earned(user1.address)).toString());
-
+    it("no permite retirar más de lo depositado", async function () {
+      const { vault, alice } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await expect(vault.connect(alice).withdraw(e(200)))
+        .to.be.revertedWithCustomError(vault, "InsufficientBalance");
+    });
   });
 
-  it("Debe permitir stake", async function () {
-    await stakingToken.connect(user1).approve(await vault.getAddress(), stakeAmount);
+  describe("Rewards", function () {
+    it("acumula rewards con el tiempo", async function () {
+      const { vault, alice } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await time.increase(3600);
+      expect(await vault.earned(alice.address)).to.be.gt(0);
+    });
 
-    await vault.connect(user1).stake(stakeAmount);
+    it("los rewards se detienen al terminar el periodo (no paga de más)", async function () {
+      const { vault, alice } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await time.increase(30 * 24 * 60 * 60); // 30 días, el periodo es de 7
+      const earned = await vault.earned(alice.address);
+      expect(earned).to.be.lte(REWARD);
+      expect(earned).to.be.closeTo(REWARD, e("0.01"));
+    });
 
-    const balance = await vault.balanceOf(user1.address);
+    it("el vault siempre puede pagar todos los rewards", async function () {
+      const { vault, alice, bob, rewardToken } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await time.increase(WEEK / 2);
+      await vault.connect(bob).stake(e(300));
+      await time.increase(2 * WEEK);
+      await vault.connect(alice).claimReward();
+      await vault.connect(bob).claimReward();
+      const paid = (await rewardToken.balanceOf(alice.address)) + (await rewardToken.balanceOf(bob.address));
+      expect(paid).to.be.lte(REWARD);
+      expect(paid).to.be.closeTo(REWARD, e("0.01"));
+    });
 
-    expect(balance).to.equal(stakeAmount);
+    it("reparte proporcional al stake", async function () {
+      const { vault, alice, bob } = await loadFixture(deployFixture);
+      await vault.connect(alice).stake(e(100));
+      await vault.connect(bob).stake(e(300));
+      await vault.notifyRewardAmount(REWARD);
+      await time.increase(WEEK + 1);
+      const a = await vault.earned(alice.address);
+      const b = await vault.earned(bob.address);
+      expect(b).to.be.closeTo(a * 3n, e("0.01"));
+    });
+
+    it("claimReward paga y deja rewards en 0", async function () {
+      const { vault, alice, rewardToken } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await time.increase(3600);
+      await expect(vault.connect(alice).claimReward()).to.emit(vault, "RewardPaid");
+      expect(await rewardToken.balanceOf(alice.address)).to.be.gt(0);
+      expect(await vault.rewards(alice.address)).to.equal(0);
+    });
+
+    it("claimReward sin rewards revierte", async function () {
+      const { vault, alice } = await loadFixture(fundedFixture);
+      await expect(vault.connect(alice).claimReward()).to.be.revertedWithCustomError(vault, "NoRewards");
+    });
+
+    it("exit retira todo y cobra rewards", async function () {
+      const { vault, alice, stakingToken, rewardToken } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await time.increase(3600);
+      await vault.connect(alice).exit();
+      expect(await vault.balanceOf(alice.address)).to.equal(0);
+      expect(await stakingToken.balanceOf(alice.address)).to.equal(e(1000));
+      expect(await rewardToken.balanceOf(alice.address)).to.be.gt(0);
+    });
   });
 
-  it("Debe acumular rewards con el tiempo", async function () {
-    await stakingToken.connect(user1).approve(await vault.getAddress(), stakeAmount);
-    await vault.connect(user1).stake(stakeAmount);
+  describe("Owner", function () {
+    it("solo el owner puede fondear rewards", async function () {
+      const { vault, alice } = await loadFixture(deployFixture);
+      await expect(vault.connect(alice).notifyRewardAmount(e(1)))
+        .to.be.revertedWithCustomError(vault, "OwnableUnauthorizedAccount");
+    });
 
-    // Avanzar tiempo
-    await network.provider.send("evm_increaseTime", [3600]);
-    await network.provider.send("evm_mine");
+    it("recargar a mitad de periodo suma lo que faltaba repartir", async function () {
+      const { vault } = await loadFixture(fundedFixture);
+      await time.increase(WEEK / 2);
+      await vault.notifyRewardAmount(REWARD);
+      // ~500 sobrantes + 1000 nuevos repartidos en 7 días
+      expect(await vault.getRewardForDuration()).to.be.closeTo(e(1500), e(1));
+    });
 
-    const earned = await vault.earned(user1.address);
+    it("con pausa no se puede stakear pero sí retirar", async function () {
+      const { vault, alice } = await loadFixture(fundedFixture);
+      await vault.connect(alice).stake(e(100));
+      await vault.pause();
+      await expect(vault.connect(alice).stake(e(1)))
+        .to.be.revertedWithCustomError(vault, "EnforcedPause");
+      await vault.connect(alice).withdraw(e(100));
+      expect(await vault.balanceOf(alice.address)).to.equal(0);
+    });
 
-    expect(earned).to.be.gt(ethers.parseEther("0"));
+    it("no deja cambiar la duración a mitad de periodo", async function () {
+      const { vault } = await loadFixture(fundedFixture);
+      await expect(vault.setRewardsDuration(WEEK * 2))
+        .to.be.revertedWithCustomError(vault, "PeriodNotFinished");
+      await time.increase(WEEK + 1);
+      await vault.setRewardsDuration(WEEK * 2);
+      expect(await vault.duration()).to.equal(WEEK * 2);
+    });
+
+    it("no deja rescatar los tokens del vault", async function () {
+      const { vault, stakingToken, rewardToken } = await loadFixture(fundedFixture);
+      await expect(vault.recoverERC20(await stakingToken.getAddress(), 1))
+        .to.be.revertedWithCustomError(vault, "CannotRecoverVaultToken");
+      await expect(vault.recoverERC20(await rewardToken.getAddress(), 1))
+        .to.be.revertedWithCustomError(vault, "CannotRecoverVaultToken");
+    });
+  });
+});
+
+describe("TesToken faucet", function () {
+  it("entrega tokens y respeta el cooldown", async function () {
+    const { stakingToken, alice } = await loadFixture(deployFixture);
+    await stakingToken.connect(alice).faucet(e(100));
+    await expect(stakingToken.connect(alice).faucet(e(100)))
+      .to.be.revertedWithCustomError(stakingToken, "FaucetCooldown");
+    await time.increase(601);
+    await stakingToken.connect(alice).faucet(e(100));
   });
 
-  it("Debe permitir reclamar rewards", async function () {
-    await stakingToken.connect(user1).approve(await vault.getAddress(), stakeAmount);
-    await vault.connect(user1).stake(stakeAmount);
-
-    await network.provider.send("evm_increaseTime", [3600]);
-    await network.provider.send("evm_mine");
-
-    await vault.connect(user1).claimReward();
-
-    const rewardBalance = await rewardToken.balanceOf(user1.address);
-
-    expect(rewardBalance).to.be.gt(ethers.parseEther("0"));
-  });
-
-  it("Debe permitir withdraw", async function () {
-    await stakingToken.connect(user1).approve(await vault.getAddress(), stakeAmount);
-    await vault.connect(user1).stake(stakeAmount);
-
-    await vault.connect(user1).withdraw(stakeAmount);
-
-    const balance = await vault.balanceOf(user1.address);
-
-    expect(balance).to.equal(0);
-  });
-
-  it("No debe permitir stake sin aprobar tokens", async function () {
-    await expect(
-      vault.connect(user1).stake(stakeAmount)
-    ).to.be.reverted;
-  });
-
-  it("No debe permitir withdraw más de lo depositado", async function () {
-    await stakingToken.connect(user1).approve(await vault.getAddress(), stakeAmount);
-    await vault.connect(user1).stake(stakeAmount);
-
-    await expect(
-      vault.connect(user1).withdraw(ethers.parseEther("200"))
-    ).to.be.reverted;
+  it("no permite pedir más del máximo", async function () {
+    const { stakingToken, alice } = await loadFixture(deployFixture);
+    await expect(stakingToken.connect(alice).faucet(e(1001)))
+      .to.be.revertedWithCustomError(stakingToken, "FaucetAmountTooHigh");
   });
 });
