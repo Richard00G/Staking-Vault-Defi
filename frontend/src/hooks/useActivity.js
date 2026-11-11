@@ -1,13 +1,13 @@
 import { useQuery } from "@tanstack/react-query";
 import { useAccount, usePublicClient } from "wagmi";
+import { isAddressEqual } from "viem";
 import { vault, DEPLOY_BLOCK, CHAIN } from "../lib/contracts";
 
-// Los RPC públicos limitan cuántos bloques se pueden consultar por llamada.
-const CHUNK = 45_000n;
-const MAX_CHUNKS = 4; // ~180k bloques ≈ 25 días en Sepolia
 const SECONDS_PER_BLOCK = 12;
-
 const KIND = { Staked: "Depósito", Withdrawn: "Retiro", RewardPaid: "Cobro" };
+// Si el RPC no deja leer todo el historial de una vez, se lee por tramos.
+const CHUNK = 9_000n;
+const MAX_CHUNKS = 10;
 
 /** Últimos movimientos del usuario en el vault, leídos de los eventos del contrato. */
 export function useActivity(limit = 5) {
@@ -20,26 +20,24 @@ export function useActivity(limit = 5) {
     refetchInterval: 30_000,
     queryFn: async () => {
       const latest = await client.getBlockNumber();
-      const found = [];
-      let to = latest;
-      for (let i = 0; i < MAX_CHUNKS && to >= DEPLOY_BLOCK && found.length < limit; i++) {
-        const from = to - CHUNK + 1n > DEPLOY_BLOCK ? to - CHUNK + 1n : DEPLOY_BLOCK;
-        const batches = await Promise.all(
-          ["Staked", "Withdrawn", "RewardPaid"].map((eventName) =>
-            client.getContractEvents({
-              address: vault.address,
-              abi: vault.abi,
-              eventName,
-              args: { user: address },
-              fromBlock: from,
-              toBlock: to,
-            })
-          )
-        );
-        found.push(...batches.flat());
-        to = from - 1n;
+      const read = (fromBlock, toBlock) =>
+        client.getContractEvents({ address: vault.address, abi: vault.abi, fromBlock, toBlock });
+
+      let logs;
+      try {
+        logs = await read(DEPLOY_BLOCK, latest);
+      } catch {
+        logs = [];
+        let to = latest;
+        for (let i = 0; i < MAX_CHUNKS && to >= DEPLOY_BLOCK; i++) {
+          const from = to - CHUNK + 1n > DEPLOY_BLOCK ? to - CHUNK + 1n : DEPLOY_BLOCK;
+          logs.push(...(await read(from, to)));
+          to = from - 1n;
+        }
       }
-      return found
+
+      return logs
+        .filter((log) => KIND[log.eventName] && log.args.user && isAddressEqual(log.args.user, address))
         .sort((a, b) => Number(b.blockNumber - a.blockNumber) || b.logIndex - a.logIndex)
         .slice(0, limit)
         .map((log) => ({
