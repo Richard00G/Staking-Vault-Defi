@@ -16,3 +16,4 @@ export const rewardToken = { address: REWARD_TOKEN_ADDRESS, abi: tokenAbi, chain
 export const FAUCET_AMOUNT = "100";
 export const explorerTx = (hash) => `${CHAIN.blockExplorers.default.url}/tx/${hash}`;
 export const explorerAddress = (addr) => `${CHAIN.blockExplorers.default.url}/address/${addr}`;
+export const DEPLOY_BLOCK = BigInt(addresses.deployBlock ?? 0);

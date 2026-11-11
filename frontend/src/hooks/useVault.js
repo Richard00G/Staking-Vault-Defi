@@ -15,6 +15,7 @@ export function useVault() {
       { ...vault, functionName: "totalSupply" },
       { ...vault, functionName: "rewardRate" },
       { ...vault, functionName: "periodFinish" },
+      { ...vault, functionName: "duration" },
       { ...vault, functionName: "balanceOf", args: [user] },
       { ...vault, functionName: "earned", args: [user] },
       { ...stakingToken, functionName: "balanceOf", args: [user] },
@@ -33,9 +34,10 @@ export function useVault() {
     totalStaked: r(0),
     rewardRate: r(1),
     periodFinish: r(2),
-    staked: connected ? r(3) : undefined,
-    earned: connected ? r(4) : undefined,
-    walletBalance: connected ? r(5) : undefined,
-    allowance: connected ? r(6) : undefined,
+    duration: r(3),
+    staked: connected ? r(4) : undefined,
+    earned: connected ? r(5) : undefined,
+    walletBalance: connected ? r(6) : undefined,
+    allowance: connected ? r(7) : undefined,
   };
 }
