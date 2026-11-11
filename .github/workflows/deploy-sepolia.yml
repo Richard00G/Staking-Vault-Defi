@@ -1,0 +1,91 @@
+name: Desplegar en Sepolia
+
+# Se corre a mano desde la pestaña Actions → "Desplegar en Sepolia" → Run workflow.
+# Necesita el secret PRIVATE_KEY (Settings → Secrets and variables → Actions).
+on:
+  workflow_dispatch:
+    inputs:
+      confirmar:
+        description: 'Escribe DESPLEGAR para confirmar'
+        required: true
+      rewards:
+        description: 'RWD para el primer periodo de 7 días'
+        required: true
+        default: '10000'
+
+permissions:
+  contents: write # para guardar las direcciones nuevas en main
+
+concurrency:
+  group: deploy-sepolia
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Desplegar contratos y actualizar la app
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    env:
+      PRIVATE_KEY: ${{ secrets.PRIVATE_KEY }}
+      SEPOLIA_RPC_URL: ${{ secrets.SEPOLIA_RPC_URL || 'https://sepolia.gateway.tenderly.co' }}
+      ETHERSCAN_API_KEY: ${{ secrets.ETHERSCAN_API_KEY }}
+      INITIAL_REWARD: ${{ inputs.rewards }}
+    steps:
+      - name: Revisar confirmación y secrets
+        run: |
+          if [ "${{ inputs.confirmar }}" != "DESPLEGAR" ]; then
+            echo "::error::Escribe DESPLEGAR en el campo de confirmación para correr el deploy."; exit 1
+          fi
+          if [ -z "$PRIVATE_KEY" ]; then
+            echo "::error::Falta el secret PRIVATE_KEY (Settings → Secrets and variables → Actions)."; exit 1
+          fi
+          if ! [[ "$INITIAL_REWARD" =~ ^[0-9]+$ ]] || [ "$INITIAL_REWARD" -lt 1 ] || [ "$INITIAL_REWARD" -gt 1000000 ]; then
+            echo "::error::Los rewards deben ser un número entero entre 1 y 1000000."; exit 1
+          fi
+
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Tests antes de desplegar
+        run: npx hardhat test
+
+      - name: Desplegar en Sepolia
+        run: npx hardhat run scripts/deploy.js --network sepolia
+
+      - name: Verificar contratos en Etherscan (opcional)
+        if: env.ETHERSCAN_API_KEY != ''
+        continue-on-error: true
+        run: |
+          A=frontend/src/lib/addresses.json
+          STK=$(jq -r .stakingToken $A); RWD=$(jq -r .rewardToken $A); VAULT=$(jq -r .vault $A)
+          sleep 30 # Etherscan tarda un poco en ver los contratos nuevos
+          npx hardhat verify --network sepolia "$STK" StakeToken STK || true
+          npx hardhat verify --network sepolia "$RWD" RewardToken RWD || true
+          npx hardhat verify --network sepolia "$VAULT" "$STK" "$RWD" || true
+
+      - name: Guardar direcciones nuevas en main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/src/lib/addresses.json frontend/src/abi
+          git commit -m "Nuevo vault en Sepolia ($(jq -r .vault frontend/src/lib/addresses.json))"
+          git push
+
+      - name: Resumen
+        run: |
+          A=frontend/src/lib/addresses.json
+          {
+            echo "## Contratos desplegados en Sepolia"
+            echo ""
+            echo "| Contrato | Dirección |"
+            echo "|---|---|"
+            echo "| STK (para depositar) | [\`$(jq -r .stakingToken $A)\`](https://sepolia.etherscan.io/address/$(jq -r .stakingToken $A)) |"
+            echo "| RWD (rewards) | [\`$(jq -r .rewardToken $A)\`](https://sepolia.etherscan.io/address/$(jq -r .rewardToken $A)) |"
+            echo "| Vault | [\`$(jq -r .vault $A)\`](https://sepolia.etherscan.io/address/$(jq -r .vault $A)) |"
+            echo ""
+            echo "Rewards fondeados: **$INITIAL_REWARD RWD** por 7 días. Vercel ya está publicando la app con estas direcciones."
+          } >> "$GITHUB_STEP_SUMMARY"
