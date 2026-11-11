@@ -38,7 +38,18 @@ npm ci
 npm test            # 19 tests
 ```
 
-### Deploy to Sepolia
+### Deploy to Sepolia from GitHub (no PC needed)
+
+1. **Settings → Secrets and variables → Actions → New repository secret**
+   - `PRIVATE_KEY` — private key of a **test-only** wallet with some Sepolia ETH (required)
+   - `SEPOLIA_RPC_URL` — your own RPC (optional; defaults to Tenderly's public gateway)
+   - `ETHERSCAN_API_KEY` — to verify the contracts on Etherscan (optional)
+2. **Actions → Desplegar en Sepolia → Run workflow**, type `DESPLEGAR` and choose the RWD amount.
+
+The workflow runs the tests, deploys STK, RWD and the vault, funds the first period,
+commits the new addresses to `main`, and Vercel republishes the app.
+
+### Deploy to Sepolia from your machine
 
 ```bash
 cp .env.example .env   # fill SEPOLIA_RPC_URL and PRIVATE_KEY (use a test wallet!)

@@ -1,7 +1,10 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("dotenv").config({ quiet: true });
 
-const { SEPOLIA_RPC_URL, PRIVATE_KEY, ETHERSCAN_API_KEY } = process.env;
+const { SEPOLIA_RPC_URL, ETHERSCAN_API_KEY } = process.env;
+// Acepta la llave con o sin "0x" (MetaMask la exporta sin él).
+const rawKey = (process.env.PRIVATE_KEY || "").trim();
+const PRIVATE_KEY = rawKey && !rawKey.startsWith("0x") ? `0x${rawKey}` : rawKey;
 
 const networks = {};
 // Solo se configura Sepolia si existen las variables; así compile/test
