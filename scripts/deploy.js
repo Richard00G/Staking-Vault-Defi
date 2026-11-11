@@ -26,6 +26,8 @@ async function main() {
     stakingToken: await stakingToken.getAddress(),
     rewardToken: await rewardToken.getAddress(),
     vault: await vault.getAddress(),
+    // Bloque del deploy: el frontend busca el historial de movimientos desde aquí
+    deployBlock: (await vault.deploymentTransaction().wait()).blockNumber,
   };
   console.log(addresses);
 

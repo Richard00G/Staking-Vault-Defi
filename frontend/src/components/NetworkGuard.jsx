@@ -7,13 +7,13 @@ export default function NetworkGuard() {
 
   if (!isConnected || chainId === CHAIN.id) return null;
   return (
-    <div className="mb-6 flex flex-col items-start justify-between gap-3 rounded-xl border border-amber-700 bg-amber-950 p-4 text-amber-200 sm:flex-row sm:items-center">
-      <p>Tu wallet está en otra red. Esta app funciona en {CHAIN.name}.</p>
+    <div className="flex flex-col gap-3 rounded-2xl bg-alert p-4 text-white sm:flex-row sm:items-center sm:justify-between">
+      <p>Tu wallet está en otra red. La bóveda vive en {CHAIN.name}.</p>
       <button
         type="button"
         onClick={() => switchChain({ chainId: CHAIN.id })}
         disabled={isPending}
-        className="rounded-lg bg-amber-500 px-4 py-2 font-semibold text-black hover:bg-amber-400 disabled:opacity-50"
+        className="h-11 shrink-0 rounded-full bg-white px-5 font-semibold text-ink disabled:opacity-60"
       >
         Cambiar a {CHAIN.name}
       </button>

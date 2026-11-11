@@ -3,6 +3,29 @@
 @tailwind utilities;
 
 html {
-  color-scheme: dark;
-  background: #030712;
+  background: #d9dde0;
+  color: #22282e;
+  color-scheme: light;
+}
+
+body {
+  margin: 0;
+  font-family: "Archivo", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Titulares anchos: la familia Archivo tiene eje de ancho */
+.wide {
+  font-stretch: 118%;
+}
+
+:focus-visible {
+  outline: 3px solid #1f6f6a;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
 }
