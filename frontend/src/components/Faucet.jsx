@@ -1,32 +1,36 @@
-import { useWriteContract } from "wagmi";
 import { parseEther } from "viem";
-import { abi as tokenAbi } from "../abi/TestToken.json";
+import { stakingToken, FAUCET_AMOUNT } from "../lib/contracts";
+import { useTx } from "../hooks/useTx";
+import { useCorrectNetwork } from "../hooks/useCorrectNetwork";
+import TxStatus from "./TxStatus";
 
-const tokenAddress = "0x92540C78fEB32bA9D1D738314549f0739E034aBd";
+export default function Faucet({ onDone }) {
+  const tx = useTx();
+  const ok = useCorrectNetwork();
 
-export default function Faucet() {
-  const { writeContractAsync, isPending } = useWriteContract();
-
-  const handleFaucet = async () => {
-    try {
-      await writeContractAsync({
-        address: tokenAddress,
-        abi: tokenAbi,
-        functionName: "faucet",
-        args: [parseEther("100")], // 100 tokens
-      });
-    } catch (err) {
-      console.error(err);
-    }
-  };
+  const claim = () =>
+    tx.run(
+      [[{ ...stakingToken, functionName: "faucet", args: [parseEther(FAUCET_AMOUNT)] }, "Faucet"]],
+      `Recibiste ${FAUCET_AMOUNT} STK 💧`,
+      onDone
+    );
 
   return (
-    <button
-      onClick={handleFaucet}
-      disabled={isPending}
-      className="bg-purple-500 hover:bg-purple-600 px-4 py-2 rounded-xl font-semibold"
-    >
-      {isPending ? "Claiming..." : "💧 Get Test Tokens"}
-    </button>
+    <div className="flex flex-col items-end gap-2">
+      <button
+        type="button"
+        onClick={claim}
+        disabled={!ok || tx.busy}
+        title={ok ? "" : "Conecta tu wallet en Sepolia"}
+        className="rounded-xl bg-violet-500 px-4 py-2 font-semibold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {tx.busy ? "Enviando…" : `💧 ${FAUCET_AMOUNT} STK gratis`}
+      </button>
+      {tx.status !== "pending" && (
+        <div className="max-w-xs text-left">
+          <TxStatus {...tx} />
+        </div>
+      )}
+    </div>
   );
 }

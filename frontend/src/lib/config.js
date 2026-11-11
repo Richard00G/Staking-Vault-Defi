@@ -1,9 +1,9 @@
-import { getDefaultConfig } from '@rainbow-me/rainbowkit';
-import { sepolia } from 'wagmi/chains';
+import { getDefaultConfig } from "@rainbow-me/rainbowkit";
+import { CHAIN } from "./contracts";
 
 export const config = getDefaultConfig({
-    appName: 'Staking Vault ',
-    projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID,
-    chains:[sepolia],
-    ssr: false,
+  appName: "Staking Vault DeFi",
+  projectId: import.meta.env.VITE_WALLETCONNECT_PROJECT_ID || "staking-vault-demo",
+  chains: [CHAIN],
+  ssr: false,
 });

@@ -1,43 +1,46 @@
 import { useState } from "react";
-import { useStaking } from "../hooks/useContract";
-//Components
+import { formatEther } from "viem";
+import { vault } from "../lib/contracts";
+import { fmt, toWei } from "../lib/format";
+import { useTx } from "../hooks/useTx";
+import { useCorrectNetwork } from "../hooks/useCorrectNetwork";
 import Card from "../components/Card";
 import Button from "../components/Button";
 import Input from "../components/Input";
+import TxStatus from "../components/TxStatus";
 
-export default function WithdrawSection() {
+export default function WithdrawSection({ v }) {
   const [amount, setAmount] = useState("");
-  const { withdraw } = useStaking(); //
+  const tx = useTx();
+  const ok = useCorrectNetwork();
 
-  const handleWithdraw = async () => {
-    if (!amount || Number(amount) <= 0) return;
+  const wei = toWei(amount);
+  const tooMuch = wei !== null && v.staked !== undefined && wei > v.staked;
 
-    try {
-      await withdraw(amount); //
-      alert("✅ Withdraw exitoso");
-    } catch (err) {
-      console.error(err);
-      alert("❌ Error withdraw");
-    }
-  };
+  const handleWithdraw = () =>
+    tx.run(
+      [[{ ...vault, functionName: "withdraw", args: [wei] }, "Retiro"]],
+      `Retiraste ${amount} STK ✅`,
+      () => {
+        setAmount("");
+        v.refetch();
+      }
+    );
 
   return (
-    <Card>
-
-        <h2 className="text-x1 font-bold mb-4 text-white">Withdraw</h2>
-
-        <Input 
-          value={amount}
-          placeholder="Amount Withdraw"
-          onChange={(e) => setAmount(e.target.value)}/>
-
-        <div className="mt-4">
-        
-        <Button color="red" onClick={handleWithdraw}>
-            Withdraw
-        </Button>
-
-        </div>
+    <Card title="Retirar" subtitle={`Stakeado: ${fmt(v.staked)} STK`}>
+      <Input
+        value={amount}
+        onChange={setAmount}
+        placeholder="Cantidad a retirar"
+        invalid={tooMuch || (amount !== "" && wei === null)}
+        onMax={v.staked ? () => setAmount(formatEther(v.staked)) : undefined}
+      />
+      {tooMuch && <p className="text-sm text-rose-400">No tienes tanto stakeado.</p>}
+      <Button color="red" onClick={handleWithdraw} disabled={!ok || !wei || tooMuch} loading={tx.busy}>
+        Retirar
+      </Button>
+      <TxStatus {...tx} />
     </Card>
   );
 }

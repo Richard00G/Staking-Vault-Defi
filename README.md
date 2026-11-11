@@ -1,98 +1,83 @@
-🚀 Staking Vault DeFi App
+# 🚀 Staking Vault DeFi
 
-A complete decentralized staking application built with Solidity + React + Wagmi + Viem.
+A full-stack staking dApp on Sepolia: stake **STK**, earn **RWD** every second, withdraw anytime.
 
-✨ Features
+**Live demo:** https://staking-vault-defi.vercel.app
 
-- 🔐 Stake ERC20 tokens
-- 💰 Earn rewards in real-time
-- 🏦 Withdraw staked tokens
-- 🎁 Claim rewards
-- 💧 Faucet for test tokens
-- 📊 Dashboard UI with live data
-- 🔗 Wallet connection (MetaMask / WalletConnect)
+## ✨ Features
 
----
+- 🔐 Stake ERC20 tokens and earn rewards per second (Synthetix StakingRewards model)
+- 🏦 Withdraw anytime — even while the vault is paused
+- 🎁 Claim rewards, or `exit()` to withdraw + claim in one transaction
+- 💧 Rate-limited faucet for test tokens
+- 📊 Live dashboard: total staked, rewards/day, time left in the reward period
+- 🔗 Wallet connection with RainbowKit (MetaMask / WalletConnect) and wrong-network detection
 
-🧱 Tech Stack
+## 🧱 Tech stack
 
-Smart Contracts
+| Layer | Tools |
+|---|---|
+| Contracts | Solidity 0.8.20, Hardhat 2, OpenZeppelin 5 (SafeERC20, ReentrancyGuard, Ownable, Pausable) |
+| Frontend | React 19, Vite, wagmi 2, viem, RainbowKit, TailwindCSS |
+| CI | GitHub Actions: contract tests + frontend lint/build on every push and PR |
+| Hosting | Vercel (`frontend/`) |
 
-- Solidity
-- Hardhat
-- OpenZeppelin
+## 📁 Structure
 
-Frontend
+```
+contracts/        StakingVault.sol, TestToken.sol
+test/             Hardhat test suite
+scripts/deploy.js Deploys tokens + vault, funds rewards, writes addresses/ABIs to the frontend
+frontend/         React app (src/lib/addresses.json is the single source of contract addresses)
+```
 
-- React + Vite
-- Wagmi v2
-- Viem
-- TailwindCSS
-- Recharts (for data visualization)
+## 🧪 Contracts
 
----
+```bash
+npm ci
+npm test            # 19 tests
+```
 
-📦 Installation
+### Deploy to Sepolia
 
-git clone <your-repo>
-cd staking-vault/frontend
-npm install
+```bash
+cp .env.example .env   # fill SEPOLIA_RPC_URL and PRIVATE_KEY (use a test wallet!)
+npm run deploy
+```
+
+The script deploys STK, RWD and the vault, funds the first 7-day reward period
+(`INITIAL_REWARD`, default 10,000 RWD) and updates `frontend/src/lib/addresses.json`
+and `frontend/src/abi/*.json`. Commit those files and Vercel redeploys the frontend.
+
+### Owner operations
+
+| Function | What it does |
+|---|---|
+| `notifyRewardAmount(amount)` | Pulls `amount` RWD from the owner and starts/extends a reward period. Requires a prior `approve`. |
+| `setRewardsDuration(seconds)` | Changes period length (only between periods). |
+| `pause()` / `unpause()` | Blocks new stakes. Withdrawals and claims keep working. |
+| `recoverERC20(token, amount)` | Rescues tokens sent by mistake (never STK or RWD). |
+
+## 💻 Frontend
+
+```bash
+cd frontend
+cp .env.example .env   # optional: your WalletConnect project id
+npm ci
 npm run dev
+```
 
----
+## 🔗 Contracts (Sepolia)
 
-⚙️ Environment Setup
+See [`frontend/src/lib/addresses.json`](frontend/src/lib/addresses.json).
 
-Create a ".env" file if needed:
+## ⚠️ Notes
 
-VITE_PROJECT_ID=your_walletconnect_project_id
+- Testnet demo for learning and portfolio purposes. **Not audited.**
+- Never commit `.env` or use a wallet with real funds as `PRIVATE_KEY`.
 
----
+## 🚀 Ideas for next steps
 
-🔗 Contracts (Sepolia)
-
-- Token: "0x..."
-- Vault: "0x..."
-
----
-
-🧪 How to Use
-
-1. Connect your wallet
-2. Click Get Test Tokens
-3. Approve tokens
-4. Stake tokens
-5. Earn rewards
-6. Claim or withdraw anytime
-
----
-
-⚠️ Notes
-
-- This project is deployed on Sepolia testnet
-- Faucet is included for demo purposes
-- Not audited – for educational/demo use only
-
----
-
-📸 Demo
-
-«Add your Vercel link here»
-
----
-
-🧠 Author
-
-Built as a full-stack Web3 portfolio project.
-
----
-
-🚀 Future Improvements
-
-- 📈 Real-time reward charts
-- 🧠 Backend analytics (Supabase)
-- 🔔 Notifications system
-- 🔒 Upgradeable contracts
-- 💰 Mainnet deployment
-
----
+- Reward history chart
+- Verified contracts on Etherscan (`npx hardhat verify`)
+- Gas report and coverage in CI
