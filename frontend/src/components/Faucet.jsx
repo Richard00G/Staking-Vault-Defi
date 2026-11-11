@@ -24,7 +24,7 @@ export default function Faucet({ onDone }) {
         disabled={!ok || tx.busy}
         className="h-11 self-start rounded-full px-1 text-sm font-semibold text-teal underline decoration-2 underline-offset-4 hover:text-teal-dark disabled:no-underline disabled:opacity-50"
       >
-        {tx.busy ? "Enviando tokens…" : `Pedir ${FAUCET_AMOUNT} STK de prueba`}
+        {tx.waitingWallet ? "Esperando tu firma…" : tx.busy ? "Enviando tokens…" : `Pedir ${FAUCET_AMOUNT} STK de prueba`}
       </button>
       <TxStatus {...tx} />
     </div>
